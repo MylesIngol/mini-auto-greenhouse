@@ -6,28 +6,37 @@
 BME280Sensor sensor;
 OLEDDisplay display;
 
-void setup() {
-    Serial.begin(SERIAL_BAUD);
-    delay(1000);
+void setup()
+{
+  Serial.begin(SERIAL_BAUD);
+  delay(1000);
 
-    Serial.println("=== mini-auto-greenhouse ===");
+  Serial.println("=== mini-auto-greenhouse ===");
 
-    sensor.begin();
-    display.begin();
+  sensor.begin();
+  display.begin();
+  sensor.beginSoil();
 
-    if (!sensor.isConnected()) {
-        display.showError("BME280 not found");
-    }
+  if (!sensor.isConnected())
+  {
+    display.showError("BME280 not found");
+  }
 }
 
-void loop() {
-    if (sensor.isConnected()) {
-        float temp     = BME280Sensor::toFahrenheit(sensor.readTemperature());
-        float humidity = sensor.readHumidity();
+void loop()
+{
+  if (sensor.isConnected())
+  {
+    float temp = BME280Sensor::toFahrenheit(sensor.readTemperature());
+    float humidity = sensor.readHumidity();
 
-        Serial.printf("[ENV] Temp: %.1f C  Humidity: %.1f %%\n", temp, humidity);
-        display.showReadings(temp, humidity);
-    }
+    Serial.printf("[ENV] Temp: %.1f F  Humidity: %.1f %%\n", temp, humidity);
+    display.showReadings(temp, humidity);
+  }
+  int soilRaw = sensor.readSoilRaw();
+  int soilPercent = sensor.readSoilPercent();
 
-    delay(SENSOR_READ_INTERVAL_MS);
+  Serial.printf("[SOIL] Raw: %d  Moisture: %d%%\n", soilRaw, soilPercent);
+
+  delay(SENSOR_READ_INTERVAL_MS);
 }

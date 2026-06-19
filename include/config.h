@@ -17,3 +17,8 @@
 
 // ─── Timing ────────────────────────────────────────────
 #define SENSOR_READ_INTERVAL_MS 2000
+
+// ─── Soil Moisture Sensor ──────────────────────────────
+#define SOIL_SENSOR_PIN     34
+#define SOIL_DRY_VALUE      2800  // calibrate this
+#define SOIL_WET_VALUE      1200  // calibrate this
