@@ -14,7 +14,7 @@
 | Item | Quantity | Status | Notes |
 |--------|--------|--------|--------|
 | BME280 | 1 | On Hand | Temperature + humidity |
-| Capacitive Soil Moisture Sensor | 0 | Need to Buy | Preferred over resistive |
+| Capacitive Soil Moisture Sensor | 1 | On Hand |  |
 | Water Level Sensor | 0 | Need to Buy | Reservoir monitoring |
 
 ---
