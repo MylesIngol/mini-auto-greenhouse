@@ -2,7 +2,7 @@
 
 ## Phase 1 - Environmental Monitoring
 
-- [  ] ESP32 setup
+- [ ] ESP32 setup
 - [ ] BME280 integration
 - [ ] OLED display
 - [ ] Sensor readings displayed
