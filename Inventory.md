@@ -23,7 +23,7 @@
 
 | Item | Quantity | Status | Notes |
 |--------|--------|--------|--------|
-| SSD1306 OLED 128x64 | 1 | On Hand | I2C |
+| SSD1306 OLED 128x64 | 3 | On Hand | I2C |
 
 ---
 
