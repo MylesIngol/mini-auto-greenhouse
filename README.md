@@ -25,7 +25,7 @@ An ESP32-powered automated greenhouse that monitors plant conditions and automat
 ## Project Status
 
 Current Phase:
-Planning / Architecture
+Phase 1 complete
 
 ## Future Features
 
