@@ -20,5 +20,12 @@
 
 // ─── Soil Moisture Sensor ──────────────────────────────
 #define SOIL_SENSOR_PIN     34
-#define SOIL_DRY_VALUE      2800  // calibrate this
-#define SOIL_WET_VALUE      1200  // calibrate this
+#define SOIL_DRY_VALUE      3050  // calibrate this
+#define SOIL_WET_VALUE      1450  // calibrate this  
+
+// ── OLED Paging ───────────────────────────────
+#define OLED_PAGE_COUNT        3
+#define OLED_ROTATE_INTERVAL_MS 5000
+
+// ── Firmware version ──────────────────────────
+#define FW_VERSION             "v0.3.0"  

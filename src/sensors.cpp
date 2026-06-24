@@ -1,56 +1,57 @@
 #include "sensors.h"
 #include "../include/config.h"
 #include <Wire.h>
+#include <math.h>
 
-bool BME280Sensor::begin()
-{
+// ── BME280 ────────────────────────────────────────────────────────────────────
+
+bool BME280Sensor::begin() {
     Wire.begin(I2C_SDA, I2C_SCL);
     _connected = _bme.begin(BME280_I2C_ADDR);
-
-    if (!_connected)
-    {
-        Serial.println("[BME280] Not found. Check wiring or I2C address.");
-    }
-    else
-    {
-        Serial.println("[BME280] Initialized.");
-    }
-
+    if (!_connected) Serial.println("[BME280] Not found. Check wiring or I2C address.");
+    else             Serial.println("[BME280] Initialized.");
     return _connected;
 }
 
-float BME280Sensor::readTemperature()
-{
-    if (!_connected)
-        return -1.0f;
-    return _bme.readTemperature();
+float BME280Sensor::readTemperature() {
+    return _connected ? _bme.readTemperature() : -1.0f;
 }
 
-float BME280Sensor::readHumidity()
-{
-    if (!_connected)
-        return -1.0f;
-    return _bme.readHumidity();
+float BME280Sensor::readHumidity() {
+    return _connected ? _bme.readHumidity() : -1.0f;
 }
 
-bool BME280Sensor::isConnected()
-{
+bool BME280Sensor::isConnected() {
     return _connected;
 }
-void BME280Sensor::beginSoil()
-{
-    pinMode(_soilPin, INPUT);
-    Serial.println("[SOIL] Soil moisture sensor initialized.");
+
+// Rothfusz regression — standard formula used in embedded weather stations
+float BME280Sensor::heatIndex(float tempF, float rh) {
+    float hi = -42.379f
+        + 2.04901523f   * tempF
+        + 10.14333127f  * rh
+        - 0.22475541f   * tempF * rh
+        - 0.00683783f   * tempF * tempF
+        - 0.05481717f   * rh * rh
+        + 0.00122874f   * tempF * tempF * rh
+        + 0.00085282f   * tempF * rh * rh
+        - 0.00000199f   * tempF * tempF * rh * rh;
+    return hi;
 }
 
-int BME280Sensor::readSoilRaw()
-{
-    return analogRead(_soilPin);
+// ── SoilSensor ────────────────────────────────────────────────────────────────
+
+void SoilSensor::begin() {
+    pinMode(_pin, INPUT);
+    Serial.println("[SOIL] Initialized.");
 }
 
-int BME280Sensor::readSoilPercent()
-{
-    int raw = analogRead(_soilPin);
-    int percent = map(raw, SOIL_DRY_VALUE, SOIL_WET_VALUE, 0, 100);
-    return constrain(percent, 0, 100);
+int SoilSensor::readRaw() {
+    return analogRead(_pin);
+}
+
+int SoilSensor::readPercent() {
+    int raw = analogRead(_pin);
+    int pct = map(raw, SOIL_DRY_VALUE, SOIL_WET_VALUE, 0, 100);
+    return constrain(pct, 0, 100);
 }

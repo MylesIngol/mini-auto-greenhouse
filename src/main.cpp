@@ -1,42 +1,65 @@
 #include <Arduino.h>
+#include <WiFi.h>
 #include "sensors.h"
 #include "display.h"
+#include "connectivity.h"
 #include "../include/config.h"
+#include "../include/system_state.h"
 
-BME280Sensor sensor;
-OLEDDisplay display;
+BME280Sensor  envSensor;
+SoilSensor    soilSensor;
+OLEDDisplay   display;
+Connectivity  connectivity;
+SystemState   state;
 
-void setup()
-{
-  Serial.begin(SERIAL_BAUD);
-  delay(1000);
+unsigned long lastSensorReadMs = 0;
 
-  Serial.println("=== mini-auto-greenhouse ===");
+void setup() {
+    Serial.begin(SERIAL_BAUD);
+    delay(1000);
+    Serial.println("=== mini-auto-greenhouse " FW_VERSION " ===");
 
-  sensor.begin();
-  display.begin();
-  sensor.beginSoil();
+    envSensor.begin();
+    soilSensor.begin();
+    display.begin();
 
-  if (!sensor.isConnected())
-  {
-    display.showError("BME280 not found");
-  }
+    if (!envSensor.isConnected()) {
+        display.showError("BME280 not found");
+    }
+
+    // WiFi + cloud — non-fatal if it fails
+    if (connectivity.begin()) {
+        state.wifiConnected = true;
+        WiFi.localIP().toString().toCharArray(state.ipAddress, 16);
+    }
 }
 
-void loop()
-{
-  if (sensor.isConnected())
-  {
-    float temp = BME280Sensor::toFahrenheit(sensor.readTemperature());
-    float humidity = sensor.readHumidity();
+void loop() {
+    unsigned long now = millis();
+    state.uptimeMs = now;
 
-    Serial.printf("[ENV] Temp: %.1f F  Humidity: %.1f %%\n", temp, humidity);
-    display.showReadings(temp, humidity);
-  }
-  int soilRaw = sensor.readSoilRaw();
-  int soilPercent = sensor.readSoilPercent();
+    // ── Sensor reads ──────────────────────────────────────────────────────────
+    if (now - lastSensorReadMs >= SENSOR_READ_INTERVAL_MS) {
+        lastSensorReadMs = now;
 
-  Serial.printf("[SOIL] Raw: %d  Moisture: %d%%\n", soilRaw, soilPercent);
+        if (envSensor.isConnected()) {
+            float tempC      = envSensor.readTemperature();
+            state.tempF      = BME280Sensor::toFahrenheit(tempC);
+            state.humidity   = envSensor.readHumidity();
+            state.heatIndexF = BME280Sensor::heatIndex(state.tempF, state.humidity);
 
-  delay(SENSOR_READ_INTERVAL_MS);
+            Serial.printf("[ENV] Temp: %.1f F  Humidity: %.1f%%  HeatIdx: %.1f F\n",
+                          state.tempF, state.humidity, state.heatIndexF);
+        }
+
+        state.soilPercent = soilSensor.readPercent();
+        Serial.printf("[SOIL] Raw: %d  Moisture: %d%%\n",
+                      soilSensor.readRaw(), state.soilPercent);
+    }
+
+    // ── Connectivity ──────────────────────────────────────────────────────────
+    connectivity.update(state);
+
+    // ── Display ───────────────────────────────────────────────────────────────
+    display.update(state);
 }
