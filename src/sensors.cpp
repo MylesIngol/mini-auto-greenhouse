@@ -55,3 +55,18 @@ int SoilSensor::readPercent() {
     int pct = map(raw, SOIL_DRY_VALUE, SOIL_WET_VALUE, 0, 100);
     return constrain(pct, 0, 100);
 }
+
+// ── WaterSensor ───────────────────────────────────────────────────────────────
+
+void WaterSensor::begin() {
+    pinMode(_pin, INPUT);
+    Serial.println("[WATER] Initialized.");
+}
+
+int WaterSensor::readRaw() {
+    return analogRead(_pin);
+}
+
+bool WaterSensor::isOk() {
+    return analogRead(_pin) > _threshold;
+}

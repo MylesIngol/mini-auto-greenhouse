@@ -26,3 +26,14 @@ public:
 private:
     int _pin = SOIL_SENSOR_PIN;
 };
+
+class WaterSensor {
+public:
+    void begin();
+    int  readRaw();
+    bool isOk();  // true = water detected
+
+private:
+    int _pin       = WATER_SENSOR_PIN;
+    int _threshold = WATER_SENSOR_THRESHOLD;
+};
