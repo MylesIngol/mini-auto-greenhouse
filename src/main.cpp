@@ -5,7 +5,8 @@
 #include "connectivity.h"
 #include "../include/config.h"
 #include "../include/system_state.h"
-
+#include "watering.h"
+Watering watering;
 WaterSensor   waterSensor;
 BME280Sensor  envSensor;
 SoilSensor    soilSensor;
@@ -20,7 +21,7 @@ void setup()
     Serial.begin(SERIAL_BAUD);
     delay(1000);
     Serial.println("=== mini-auto-greenhouse " FW_VERSION " ===");
-
+watering.begin();
     waterSensor.begin();
     envSensor.begin();
     soilSensor.begin();
@@ -67,7 +68,7 @@ void loop()
                       waterSensor.readRaw(),
                       state.waterOk ? "yes" : "no");
     }
-
+watering.update(state);
     connectivity.update(state);
     display.update(state);
 }
