@@ -25,10 +25,10 @@
 
 // Water Level Sensor
 #define WATER_SENSOR_PIN 35
-#define WATER_SENSOR_THRESHOLD 500
+#define WATER_SENSOR_THRESHOLD 500                                                                                                                                                                                                                      
 
 // ── Pump ──────────────────────────────────────────────
-#define PUMP_PIN                25
+#define PUMP_PIN                32
 #define SOIL_DRY_THRESHOLD      30    // % — start watering below this
 #define SOIL_WET_THRESHOLD      60    // % — stop watering above this
 #define PUMP_PULSE_ON_MS        2000  // pump on duration per pulse
