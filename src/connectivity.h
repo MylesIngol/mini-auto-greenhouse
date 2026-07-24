@@ -15,4 +15,5 @@ private:
     void _connectMQTT();
     void _publishMQTT(const SystemState& s);
     void _publishInflux(const SystemState& s);
+    void _publishWateringEvent(const SystemState& s);
 };

@@ -31,7 +31,8 @@ bool Connectivity::begin() {
     Serial.println("[NTP] Time synced.");
 
     // InfluxDB
-influxClient.setWriteOptions(WriteOptions().writePrecision(WritePrecision::S));    if (influxClient.validateConnection()) {
+    influxClient.setWriteOptions(WriteOptions().writePrecision(WritePrecision::S));
+    if (influxClient.validateConnection()) {
         Serial.printf("[INFLUX] Connected: %s\n", influxClient.getServerUrl().c_str());
     } else {
         Serial.printf("[INFLUX] Connection failed: %s\n", influxClient.getLastErrorMessage().c_str());
@@ -54,7 +55,12 @@ void Connectivity::update(const SystemState& state) {
     }
     mqttClient.loop();
 
-    // Publish on interval
+    // Discrete watering event — publish immediately, independent of telemetry interval
+    if (state.wateringEventPending) {
+        _publishWateringEvent(state);
+    }
+
+    // Publish telemetry on interval
     unsigned long now = millis();
     if (now - lastPublishMs >= PUBLISH_INTERVAL_MS) {
         lastPublishMs = now;
@@ -126,5 +132,19 @@ void Connectivity::_publishInflux(const SystemState& s) {
         Serial.printf("[INFLUX] Write failed: %s\n", influxClient.getLastErrorMessage().c_str());
     } else {
         Serial.println("[INFLUX] Write OK.");
+    }
+}
+
+void Connectivity::_publishWateringEvent(const SystemState& s) {
+    Point p("watering_event");
+    p.addTag("device", "esp32-greenhouse");
+    p.addField("pulse_num", s.wateringEventPulseNum);
+    p.addField("soil_pct",  s.wateringEventSoilPct);
+    p.setTime(timeClient.getEpochTime());
+
+    if (!influxClient.writePoint(p)) {
+        Serial.printf("[INFLUX] Watering event write failed: %s\n", influxClient.getLastErrorMessage().c_str());
+    } else {
+        Serial.println("[INFLUX] Watering event write OK.");
     }
 }

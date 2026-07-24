@@ -39,6 +39,11 @@ void Watering::update(SystemState &state)
             _pulseCount++;
             Serial.printf("[PUMP] Pulse %d complete.\n", _pulseCount);
 
+            // Flag a discrete event for Connectivity to log to InfluxDB
+            state.wateringEventPending  = true;
+            state.wateringEventPulseNum = _pulseCount;
+            state.wateringEventSoilPct  = state.soilPercent;
+
             // Hit max pulses — enter cooldown
             if (_pulseCount >= PUMP_MAX_PULSES)
             {

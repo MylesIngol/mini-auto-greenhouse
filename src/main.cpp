@@ -21,7 +21,7 @@ void setup()
     Serial.begin(SERIAL_BAUD);
     delay(1000);
     Serial.println("=== mini-auto-greenhouse " FW_VERSION " ===");
-watering.begin();
+    watering.begin();
     waterSensor.begin();
     envSensor.begin();
     soilSensor.begin();
@@ -68,7 +68,9 @@ void loop()
                       waterSensor.readRaw(),
                       state.waterOk ? "yes" : "no");
     }
-watering.update(state);
+
+    watering.update(state);
     connectivity.update(state);
+    state.wateringEventPending = false;  // clear after Connectivity has had a chance to publish it
     display.update(state);
 }

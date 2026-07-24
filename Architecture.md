@@ -1,139 +1,64 @@
 # System Architecture
 
-## Overview
+## Main Controller
 
-```
-┌─────────────────────────────────────────────┐
-│                  ESP32                       │
-│                                             │
-│  BME280 ──────► SystemState ◄── SoilSensor  │
-│  (I2C)          │                           │
-│                 ├──► OLEDDisplay (I2C)      │
-│                 └──► Connectivity           │
-│                       │                     │
-└───────────────────────┼─────────────────────┘
-                        │ WiFi / TLS
-                        ▼
-              HiveMQ Cloud (MQTT broker)
-                        │
-                        ▼
-              InfluxDB Cloud (time-series DB)
-                        │
-                        ▼
-              Grafana Cloud (dashboard)
-```
+ESP32
 
-## Firmware Architecture
-
-### Central State Pattern
-All modules communicate through a shared `SystemState` struct defined in `include/system_state.h`. Sensors write to it; display and connectivity read from it via `const` reference. No module reaches into another directly.
-
-### Non-blocking Loop
-The main loop uses `millis()`-based timers exclusively. No `delay()` calls in steady-state operation. Sensor reads, display updates, and cloud publishes all run on independent intervals.
-
-### Publish Interval
-Sensor data is published to MQTT and InfluxDB every 30 seconds. NTP time sync ensures accurate timestamps on every InfluxDB data point.
-
----
-
-## ESP32
-
-**Microcontroller:** ESP32 DevKit  
-**Framework:** Arduino via PlatformIO  
-**Clock:** 240 MHz dual-core  
-**Flash:** 4MB
-
-### Responsibilities
-- Read all sensors on a 2-second interval
-- Maintain `SystemState` struct
-- Drive OLED display (auto-rotating pages)
-- Maintain WiFi connection with auto-reconnect
-- Publish sensor data via MQTT (TLS) every 30s
-- Write time-series data to InfluxDB every 30s
-
----
+Responsibilities:
+- Read sensors
+- Make automation decisions
+- Drive display
+- Connect to WiFi
+- Upload data
 
 ## Sensors
 
 ### BME280
-- **Interface:** I2C (SDA: GPIO21, SCL: GPIO22, addr: 0x76)
-- **Measures:** Temperature (°C → converted to °F), Relative Humidity (%RH)
-- **Derived:** Heat index via Rothfusz regression
+Measures:
+- Temperature
+- Humidity
 
-### Capacitive Soil Moisture Sensor
-- **Interface:** ADC (GPIO34)
-- **Measures:** Raw ADC value → mapped to 0–100% moisture
-- **Calibration:** Dry = 3050, Wet = 1450
-- **Note:** Capacitive type chosen over resistive to avoid electrode corrosion
+### Soil Moisture Sensor
+Measures:
+- Soil moisture percentage
 
-### Water Level Sensor (pending)
-- **Type:** DIYables resistive
-- **Purpose:** Reservoir empty detection
-- **Tradeoff:** Resistive corrosion risk accepted — appropriate for fast-cycle demo species (cat grass). Documented as deliberate scoped decision.
-
----
+### Water Level Sensor
+Measures:
+- Reservoir level
 
 ## Outputs
 
-### SSD1306 OLED Display (128x64)
-- **Interface:** I2C (shared bus with BME280, addr: 0x3C)
-- **Pages:** 3-page auto-rotating display (5s interval)
-  - Page 1 — Climate: Temp, Humidity, Heat Index
-  - Page 2 — Soil & Water: Moisture %, Reservoir status, Last watered
-  - Page 3 — System: Uptime, WiFi status, IP address, Firmware version
-- **Page indicator:** Filled/outline dot indicators in header
+### OLED Display
+Shows:
+- Temperature
+- Humidity
+- Soil moisture
+- System status
 
-### Peristaltic Pump (pending)
-- **Model:** CONQUERALL 5V
-- **Control:** PN2222 NPN transistor + 1N4007 flyback diode
-- **Why peristaltic:** Self-sealing, self-priming, enables calibrated mL/s dosing. No backflow when unpowered (unlike centrifugal).
-- **Power:** Dedicated 5V supply required — ESP32 USB rail insufficient for pump current draw
+### Water Pump
+Used for:
+- Automatic watering
+- Switched via NPN transistor (low-side switch), with a 10kΩ base pull-down and a 1N4007 flyback diode across the pump terminals for back-EMF protection
 
----
+## Cloud
 
-## Cloud Stack
-
-### HiveMQ Cloud
-- **Role:** MQTT broker
-- **Protocol:** MQTT over TLS (port 8883)
-- **Topic:** `greenhouse/sensors`
-- **Payload:** JSON — `tempF`, `humidity`, `heatIndexF`, `soilPct`, `waterOk`
-
-### InfluxDB Cloud
-- **Role:** Time-series database
-- **Measurement:** `environment`
-- **Tag:** `device = esp32-greenhouse`
-- **Fields:** `temp_f`, `humidity`, `heat_index_f`, `soil_pct`, `water_ok`
-- **Timestamp:** NTP-synced epoch seconds
-
-### Grafana Cloud
-- **Role:** Dashboard and visualization
-- **Datasource:** InfluxDB Cloud (Flux query language)
-- **Panels:** Stat panels (current values) + time series graphs per field
-- **Refresh:** 30s auto-refresh
+Stores:
+- Temperature history
+- Humidity history
+- Watering history
 
 ---
 
-## GPIO Map
+## Debugging Postmortem: Continuous Pump Operation (Phase 3)
 
-| GPIO | Function |
-|------|----------|
-| 21 | I2C SDA (BME280 + OLED) |
-| 22 | I2C SCL (BME280 + OLED) |
-| 34 | Soil moisture sensor (ADC input) |
-| TBD | Pump control (transistor base) |
-| TBD | Water level sensor |
+**Symptom:** Pump ran continuously regardless of GPIO/transistor switching state — firmware logic appeared correct, but the pump never turned off.
 
----
+**Root cause:** Wiring topology error. The pump's negative lead was wired directly to ground, bypassing the transistor entirely. The transistor was present in the circuit but never in the current path, so it had no ability to switch the pump on or off — it was just sitting there while the pump ran straight off the supply.
 
-## Key Design Decisions
+**Fix:** Rewired as a proper low-side NPN switch:
+- Pump (−) → transistor collector
+- Transistor emitter → ground
+- 10kΩ pull-down resistor on the transistor base (prevents floating-base false triggering)
+- 1N4007 flyback diode across the pump terminals (protects the transistor from back-EMF generated when the pump coil switches off)
 
-| Decision | Rationale |
-|---|---|
-| Peristaltic over centrifugal pump | Self-sealing, self-priming, metered delivery without solenoid valve |
-| Capacitive over resistive soil sensor | No electrode corrosion, longer lifespan |
-| Resistive water level sensor | Cost/simplicity tradeoff; corrosion acceptable for short demo cycles |
-| Local-first WiFi, no remote access | Simplicity; Tailscale available as quick add-on if needed |
-| `SystemState` central struct | Decouples modules, prevents circular dependencies, enables clean testing |
-| `millis()` non-blocking loop | Allows independent timing of sensors, display, and network without blocking |
-| NTP timestamps on InfluxDB points | Required for accurate time-series ordering and Grafana display |
+**Lesson:** When output hardware doesn't respond to switching, verify the wiring topology before assuming a firmware bug. A transistor that's present in the circuit but wired around the load contributes nothing — trace the actual current path first, then check code.
